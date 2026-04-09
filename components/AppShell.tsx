@@ -52,7 +52,10 @@ export default function AppShell() {
         .eq("user_id", user.id)
         .order("updated_at", { ascending: false });
 
-      if (data) setAllPages(data);
+      if (data) {
+        setAllPages(data);
+        if (data.length > 0) setActivePage(data[0]);
+      }
     }
     init();
   }, []);
