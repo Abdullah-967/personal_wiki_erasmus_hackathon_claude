@@ -1,0 +1,277 @@
+{
+  "project": "Personal Wikipedia Companion",
+  "version": "v1",
+  "build_order": [
+    "F01",
+    "F02",
+    "F03",
+    "F04",
+    "F05",
+    "F06",
+    "F07",
+    "F09",
+    "F10",
+    "F11",
+    "F12",
+    "F13",
+    "F08",
+    "F17",
+    "F18",
+    "F20",
+    "F15",
+    "F16",
+    "F19",
+    "F14"
+  ],
+  "features": [
+    {
+      "id": "F01",
+      "name": "Supabase database schema",
+      "layer": "db",
+      "scope": "v1",
+      "description": "Create V1 tables with RLS on every user-owned table. JWT forwarded from client enforces RLS — service role key never used in user-data routes.",
+      "tables": {
+        "profiles": ["id", "email", "created_at"],
+        "wiki_pages": [
+          "id",
+          "user_id",
+          "title",
+          "aliases:text[]",
+          "summary",
+          "body",
+          "key_points:text[]",
+          "examples:text[]",
+          "created_at",
+          "updated_at"
+        ],
+        "page_links": [
+          "id",
+          "user_id",
+          "source_page_id",
+          "target_page_id",
+          "relationship_type",
+          "relationship_reason",
+          "created_at"
+        ],
+        "sources": [
+          "id",
+          "user_id",
+          "page_id",
+          "source_type",
+          "source_name",
+          "uploaded_at",
+          "excerpt",
+          "file_reference"
+        ]
+      },
+      "relationship_type_enum": [
+        "related_to",
+        "prerequisite_for",
+        "extends",
+        "contradicts",
+        "example_of",
+        "similar_to"
+      ],
+      "depends_on": []
+    },
+    {
+      "id": "F02",
+      "name": "Auth — Supabase email + password",
+      "layer": "backend",
+      "scope": "v1",
+      "description": "Sign-up and sign-in via Supabase Auth (email + password). All app routes are protected — unauthenticated users redirect to /login. JWT forwarded to API routes to instantiate a per-request Supabase client that respects RLS.",
+      "depends_on": ["F01"]
+    },
+    {
+      "id": "F03",
+      "name": "Three-panel app shell",
+      "layer": "frontend",
+      "scope": "v1",
+      "description": "Fixed three-panel layout: left (AgentPanel), center (WikiPage), right (RightPanel). No collapsing in V1. Each panel manages its own overflow independently.",
+      "depends_on": ["F02"]
+    },
+    {
+      "id": "F04",
+      "name": "AgentPanel component",
+      "layer": "frontend",
+      "scope": "v1",
+      "description": "Left panel. Message list: user messages right-aligned, assistant left-aligned. Input: multiline textarea, Enter to send, Shift+Enter for newline, paperclip icon for file upload. During Phase 1: input disabled, animated indicator with dynamic status label. During Phase 2: text streams token-by-token. KnowledgeUpdateCard appended inline below each assistant message that triggered a wiki mutation.",
+      "depends_on": ["F03"]
+    },
+    {
+      "id": "F05",
+      "name": "WikiPage renderer component",
+      "layer": "frontend",
+      "scope": "v1",
+      "description": "Center panel. Renders active wiki page top-to-bottom: Title (h1, read-only), Summary, Body (Markdown rendered), Key Points (bulleted), Examples (collapsible, hidden if empty), Related Topics (chip list — each chip loads that page in center), Sources (collapsed by default), Backlinks (collapsed, clickable). Backlinks are computed at read time via SELECT source_page_id FROM page_links WHERE target_page_id = $current — not a stored column. Page navigation via chip/backlink clicks updates active page client-side — no URL-per-page in V1. Empty state: 'Your wiki is empty. Tell me something you learned.'",
+      "depends_on": ["F03"]
+    },
+    {
+      "id": "F06",
+      "name": "RightPanel component",
+      "layer": "frontend",
+      "scope": "v1",
+      "description": "Right panel. Context-switches automatically based on last AI action — no manual tabs in V1. After page created/updated: related pages (linked titles, clickable). After Q&A: pages referenced in the answer. Default/idle: full page list sorted by last_updated, with search input. New tiles slide up + fade in (8px translate, 200ms ease-out) via Realtime.",
+      "depends_on": ["F03"]
+    },
+    {
+      "id": "F07",
+      "name": "KnowledgeUpdateCard component",
+      "layer": "frontend",
+      "scope": "v1",
+      "description": "Inline card appended in chat below each assistant message that triggered a wiki mutation. Not dismissible — part of the conversation record. Fields: action badge (Page Created | Page Updated | Pages Linked), affected page name(s) clickable to load in center panel, links added list, one-line summary of what changed. Renders after Supabase Realtime event confirms the DB write.",
+      "depends_on": ["F04"]
+    },
+    {
+      "id": "F08",
+      "name": "Supabase Realtime subscription",
+      "layer": "frontend",
+      "scope": "v1",
+      "description": "Client subscribes to Realtime on wiki_pages and page_links for the current user. On INSERT/UPDATE: update RightPanel state (triggers slide-in animation), trigger KnowledgeUpdateCard render, refresh WikiPage if the active page was the mutated one. No manual refresh anywhere in the UI.",
+      "depends_on": ["F06", "F07"]
+    },
+    {
+      "id": "F09",
+      "name": "Chat API route with Claude tool use",
+      "layer": "backend",
+      "scope": "v1",
+      "description": "POST /app/api/chat/route.ts. Uses Vercel AI SDK streamText with all skills bound as tools. Claude is the router — no separate intent classifier. maxSteps: 5 allows tool chaining within a single turn (e.g. create_wiki_page → link_related_pages). If streamText resolves with finishReason === 'max-steps', append a visible notice in chat: 'I ran out of steps — some links may be missing. Continue?' so partial completion is never silent. System prompt injects all page titles + one-line summaries on every request (capped at 50 most recently updated if user has >100 pages). DB writes happen inside tool execute functions only — never in narration text. chat_response streams to client via useChat. Supabase Realtime fires after each confirmed DB write. Tool response contract: every execute function returns { status: 'ok', data: ... } | { status: 'empty' } | { status: 'error', message: string }. System prompt instructs Claude to treat 'empty' as 'not added yet' and 'error' as 'could not reach your wiki' — never conflate the two.",
+      "depends_on": ["F01", "F02"]
+    },
+    {
+      "id": "F10",
+      "name": "Tool: create_wiki_page",
+      "layer": "ai",
+      "scope": "v1",
+      "description": "Claude tool. Invoked when user provides new knowledge and no page exists for the concept (no exact title or alias match, case-insensitive). Generates structured page JSON, writes to wiki_pages. Chains into link_related_pages automatically via maxSteps.",
+      "input": {
+        "user_message": "string",
+        "existing_page_titles": "string[]"
+      },
+      "output": {
+        "action": "\"create\"",
+        "title": "string",
+        "summary": "string",
+        "body": "string (Markdown)",
+        "key_points": "string[]",
+        "examples": "string[]",
+        "related_page_titles": "string[]",
+        "relationship_types": "{ title: string, type: relationship_type_enum }[]"
+      },
+      "depends_on": ["F09"]
+    },
+    {
+      "id": "F11",
+      "name": "Tool: update_wiki_page",
+      "layer": "ai",
+      "scope": "v1",
+      "description": "Claude tool. Invoked when user provides knowledge that matches an existing page (exact title or alias match, case-insensitive). Merges new content into existing page fields. Same output schema as create_wiki_page with action: 'update'. Updates wiki_pages row. Chains into link_related_pages for any new related_page_titles.",
+      "input": {
+        "page_id": "string",
+        "existing_page": "WikiPage",
+        "user_message": "string"
+      },
+      "output": {
+        "action": "\"update\"",
+        "title": "string",
+        "summary": "string",
+        "body": "string (Markdown)",
+        "key_points": "string[]",
+        "examples": "string[]",
+        "related_page_titles": "string[]",
+        "relationship_types": "{ title: string, type: relationship_type_enum }[]"
+      },
+      "depends_on": ["F09"]
+    },
+    {
+      "id": "F12",
+      "name": "Tool: link_related_pages",
+      "layer": "ai",
+      "scope": "v1",
+      "description": "Claude tool. Called after create or update. Takes source page id and related_page_titles array. For each title that matches an existing page (exact/alias, case-insensitive), inserts a row into page_links with relationship_type and relationship_reason. Silently skips titles with no matching page. Returns count of links created.",
+      "input": {
+        "source_page_id": "string",
+        "related_page_titles": "string[]",
+        "relationship_types": "{ title: string, type: relationship_type_enum, reason: string }[]"
+      },
+      "output": {
+        "links_created": "number"
+      },
+      "depends_on": ["F09"]
+    },
+    {
+      "id": "F13",
+      "name": "Tool: query_personal_wiki",
+      "layer": "ai",
+      "scope": "v1",
+      "description": "Claude tool. Two-step retrieval. Step 1: inject all page titles + summaries; Claude returns ids of relevant pages (up to 10). Step 2: fetch full bodies of selected pages and return them as verbatim excerpts — not summaries. The system prompt instructs Claude to quote from those excerpts directly rather than paraphrase from its own training knowledge. This prevents citation hallucination (attributing to the user's wiki a fact that came from the model). Every answer names the specific pages used inline. If the wiki is insufficient, labels it 'Outside your wiki:' so the user knows what came from their knowledge vs. the model. Returns { status: 'empty' } if no pages match — never conflate with { status: 'error' }.",
+      "output": {
+        "answer": "string (Markdown with inline citations)",
+        "pages_used": "string[]"
+      },
+      "depends_on": ["F09"]
+    },
+    {
+      "id": "F14",
+      "name": "Tool: find_knowledge_gaps",
+      "layer": "ai",
+      "scope": "stretch",
+      "description": "Claude tool. Reviews wiki page coverage for a topic area. Surfaces weakly connected or unresolved areas. Suggests next learning topics or open questions. Returns list of gap descriptions and suggested next steps.",
+      "output": {
+        "gaps": "string[]",
+        "suggested_next_topics": "string[]"
+      },
+      "depends_on": ["F09"]
+    },
+    {
+      "id": "F15",
+      "name": "File upload UI",
+      "layer": "frontend",
+      "scope": "v1",
+      "description": "Paperclip icon in chat input. Accepts PDF, .txt, .md — max 10 MB. States: idle, uploading (progress indicator in input area), extracting ('Processing your file...' in chat, input disabled), success (normal KnowledgeUpdateCard flow), unsupported type (inline error: 'Unsupported file type. Try PDF, .txt, or .md.'), file too large (inline error: 'File exceeds 10 MB limit.'), parse failure (inline error with suggestion to paste text manually). Wiki is never mutated on any failure.",
+      "depends_on": ["F04"]
+    },
+    {
+      "id": "F16",
+      "name": "File ingestion API route",
+      "layer": "backend",
+      "scope": "v1",
+      "description": "POST /app/api/ingest/route.ts. Accepts multipart form data. Validates file type and size before processing. Text extraction: pdf-parse for PDF, native read for .txt/.md. Scanned PDF OCR deferred to V2. On success: passes extracted text to chat route as additional context for create_wiki_page or update_wiki_page. Stores file reference and excerpt in sources table via Supabase Storage.",
+      "supported_types": ["application/pdf", "text/plain", "text/markdown"],
+      "max_size_mb": 10,
+      "depends_on": ["F09", "F15"]
+    },
+    {
+      "id": "F17",
+      "name": "Streaming UX — Phase 1 indicator",
+      "layer": "frontend",
+      "scope": "v1",
+      "description": "During Phase 1 (tool calls in progress): chat input disabled, animated pulsing dots visible, dynamic status label updates per active tool driven by toolInvocations from AI SDK. Label mapping: create_wiki_page → 'Creating page...', update_wiki_page → 'Updating page...', link_related_pages → 'Linking concepts...', query_personal_wiki → 'Searching your wiki...', find_knowledge_gaps → 'Finding gaps...'.",
+      "depends_on": ["F04", "F09"]
+    },
+    {
+      "id": "F18",
+      "name": "Streaming UX — wiki section-by-section reveal",
+      "layer": "frontend",
+      "scope": "v1",
+      "description": "When a page is created or updated, center panel immediately renders a full structured skeleton (CSS pulse animation, sections sized to match expected content). Sections replace skeleton in order as page data arrives via Realtime: Title → Summary → Body → Key Points → Related Topic chips. Each section cross-fades in (150ms ease-out). On update: changed sections flash a brief background highlight to signal what changed.",
+      "depends_on": ["F05", "F08"]
+    },
+    {
+      "id": "F19",
+      "name": "Empty state and first-run experience",
+      "layer": "frontend",
+      "scope": "v1",
+      "description": "New authenticated users see: center panel placeholder ('Your wiki is empty. Tell me something you learned.'), right panel with empty page list and a getting-started prompt, chat seeded with a single companion introduction message. No demo pages pre-populated — the demo always starts from a real empty wiki.",
+      "depends_on": ["F03"]
+    },
+    {
+      "id": "F20",
+      "name": "Deduplication routing",
+      "layer": "backend",
+      "scope": "v1",
+      "description": "Before the tool call fires, the API route checks all user page titles and aliases (case-insensitive exact match) against the concept Claude is about to create. If a match is found, routes to update_wiki_page instead of create_wiki_page. No fuzzy or semantic matching in V1 — exact title/alias only.",
+      "depends_on": ["F10", "F11"]
+    }
+  ]
+}
