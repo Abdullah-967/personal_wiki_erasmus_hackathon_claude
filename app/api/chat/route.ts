@@ -2,8 +2,12 @@ import { buildSystemPrompt } from "@/lib/claude/system-prompt";
 import { createClient } from "@/lib/supabase/server";
 import type { PageLink, RelationshipType, WikiPage } from "@/types/database";
 import { anthropic } from "@ai-sdk/anthropic";
+import { createClient as createAdminClient, type SupabaseClient } from "@supabase/supabase-js";
 import { streamText, tool } from "ai";
 import { z } from "zod";
+
+// QA test user — matches an existing row in auth.users
+const QA_USER_ID = "5ae62cd7-24b7-474b-88c8-c90d83df0cc2";
 
 export const maxDuration = 60;
 
@@ -30,13 +34,19 @@ type ToolResult =
   | { status: "error"; message: string };
 
 export async function POST(request: Request): Promise<Response> {
-  const supabase = await createClient();
-
-  // QA_BYPASS: skip auth check for browser testing — revert before shipping
+  // QA_BYPASS: use admin client (service role) to bypass RLS — revert before shipping
   let userId: string;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let supabase: SupabaseClient<any>;
+
   if (process.env.QA_BYPASS === "1") {
-    userId = "00000000-0000-0000-0000-000000000000";
+    userId = QA_USER_ID;
+    supabase = createAdminClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    );
   } else {
+    supabase = await createClient();
     const {
       data: { user },
     } = await supabase.auth.getUser();
