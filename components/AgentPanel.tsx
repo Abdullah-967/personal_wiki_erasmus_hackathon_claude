@@ -25,7 +25,9 @@ type ToolResultData =
         page_id?: string;
         links_created?: number;
         source_page_title?: string;
-        pages?: unknown[];
+        pages?: Array<{ title: string }>;
+        total_pages?: number;
+        isolated_pages?: string[];
       };
     }
   | { status: "empty" }
@@ -66,48 +68,94 @@ function KnowledgeCards({
 }) {
   if (!toolInvocations?.length) return null;
 
-  const cards = toolInvocations
-    .filter((t) => t.state === "result")
-    .flatMap((t) => {
-      const result = t.result as ToolResultData;
-      if (result.status !== "ok") return [];
-      const { data } = result;
+  const cards = toolInvocations.flatMap((t) => {
+    // In-flight: pulsing indicator card in the message thread
+    if (t.state === "call") {
+      const label = TOOL_STATUS_LABELS[t.toolName] ?? "Working...";
+      return [
+        <div
+          key={`${t.toolCallId}-loading`}
+          className="bg-gray-900/60 border border-gray-700/50 rounded-xl px-3 py-2 mt-2 flex items-center gap-2"
+        >
+          <div className="flex gap-0.5 shrink-0">
+            <span className="w-1 h-1 bg-gray-500 rounded-full animate-bounce [animation-delay:-0.3s]" />
+            <span className="w-1 h-1 bg-gray-500 rounded-full animate-bounce [animation-delay:-0.15s]" />
+            <span className="w-1 h-1 bg-gray-500 rounded-full animate-bounce" />
+          </div>
+          <span className="text-xs text-gray-500">{label}</span>
+        </div>,
+      ];
+    }
 
-      if (t.toolName === "create_wiki_page" && data.title) {
-        return [
-          <KnowledgeUpdateCard
-            key={t.toolCallId}
-            action="Page Created"
-            pageTitle={data.title}
-            summary="Page added to your wiki."
-            onPageClick={onPageClick}
-          />,
-        ];
-      }
-      if (t.toolName === "update_wiki_page" && data.title) {
-        return [
-          <KnowledgeUpdateCard
-            key={t.toolCallId}
-            action="Page Updated"
-            pageTitle={data.title}
-            summary="Wiki page updated."
-            onPageClick={onPageClick}
-          />,
-        ];
-      }
-      if (t.toolName === "link_related_pages" && data.source_page_title) {
-        return [
-          <KnowledgeUpdateCard
-            key={t.toolCallId}
-            action="Pages Linked"
-            pageTitle={data.source_page_title}
-            summary={`${data.links_created ?? 0} link(s) created.`}
-            onPageClick={onPageClick}
-          />,
-        ];
-      }
-      return [];
-    });
+    if (t.state !== "result") return [];
+
+    const result = t.result as ToolResultData;
+    if (result.status !== "ok") return [];
+    const { data } = result;
+
+    if (t.toolName === "create_wiki_page" && data.title) {
+      return [
+        <KnowledgeUpdateCard
+          key={t.toolCallId}
+          action="Page Created"
+          pageTitle={data.title}
+          summary="Page added to your wiki."
+          onPageClick={onPageClick}
+        />,
+      ];
+    }
+    if (t.toolName === "update_wiki_page" && data.title) {
+      return [
+        <KnowledgeUpdateCard
+          key={t.toolCallId}
+          action="Page Updated"
+          pageTitle={data.title}
+          summary="Wiki page updated."
+          onPageClick={onPageClick}
+        />,
+      ];
+    }
+    if (t.toolName === "link_related_pages" && data.source_page_title) {
+      // Show actual linked page names from call args instead of a raw count
+      const args = t.args as { relationship_types?: Array<{ title: string }> };
+      const linkedTitles = args.relationship_types?.map((r) => r.title) ?? [];
+      return [
+        <KnowledgeUpdateCard
+          key={t.toolCallId}
+          action="Pages Linked"
+          pageTitle={data.source_page_title}
+          linksAdded={linkedTitles}
+          onPageClick={onPageClick}
+        />,
+      ];
+    }
+    if (t.toolName === "query_personal_wiki" && data.pages?.length) {
+      const pageTitles = data.pages.map((p) => p.title);
+      return [
+        <KnowledgeUpdateCard
+          key={t.toolCallId}
+          action="Wiki Searched"
+          pageTitle="your wiki"
+          linksAdded={pageTitles}
+          onPageClick={onPageClick}
+        />,
+      ];
+    }
+    if (t.toolName === "find_knowledge_gaps") {
+      const total = data.total_pages ?? 0;
+      const isolated = data.isolated_pages?.length ?? 0;
+      return [
+        <KnowledgeUpdateCard
+          key={t.toolCallId}
+          action="Gaps Analyzed"
+          pageTitle="Knowledge Graph"
+          summary={`${total} pages · ${isolated} isolated`}
+          onPageClick={onPageClick}
+        />,
+      ];
+    }
+    return [];
+  });
 
   return <>{cards}</>;
 }
@@ -168,9 +216,7 @@ export default function AgentPanel({
         processedQueryResults.current.add(t.toolCallId);
         const result = t.result as ToolResultData;
         if (result.status === "ok" && result.data.pages) {
-          const titles = (result.data.pages as { title: string }[]).map(
-            (p) => p.title,
-          );
+          const titles = result.data.pages.map((p) => p.title);
           if (titles.length > 0) onReferencedPageTitles(titles);
         }
       }
@@ -354,7 +400,7 @@ export default function AgentPanel({
           </button>
         </form>
 
-        {/* In-progress indicator */}
+        {/* Fallback in-progress indicator for narrative generation (no active tool) */}
         {isLoading && (
           <div className="flex items-center gap-2 px-1">
             <div className="flex gap-1">
