@@ -158,3 +158,35 @@ Core flow is polished and fully functional. One build error fixed. One ux-smell 
 
 ### QA Limitations (structural)
 - Browser session user ≠ QA_USER_ID. All API routes write pages for QA_USER_ID via service-role client, but the browser Supabase client uses the session user (different ID). Realtime INSERT/UPDATE events for QA_USER_ID pages never reach the browser subscription filter. Consequence: KnowledgeUpdateCard navigation, Realtime reveal animation, and wiki: link rendering in new page bodies cannot be fully verified end-to-end in Docker Playwright without a browser session as QA_USER_ID. These are production-correct code paths — the limitation is the QA environment only.
+
+---
+
+## Session 3 — 2026-04-09 (chat panel re-test)
+
+### Issues found: 2 (0 critical, 0 major, 1 minor fixed, 1 blocker)
+
+---
+
+### Issue: Wrong model slug — all chat API calls silently fail
+- **Severity**: minor (fix was 1 char)
+- **Description**: `app/api/chat/route.ts:115` used `anthropic("claude-sonnet-4-6")` — hyphens for the version suffix. Anthropic SDK requires dots: `claude-sonnet-4.6`. The AI SDK wrapped the model-not-found error as the generic `"An error occurred."` stream event, hiding the real cause.
+- **Root cause**: `app/api/chat/route.ts` line 115 — hyphen instead of dot in model ID.
+- **Fix applied**: Yes — changed `"claude-sonnet-4-6"` → `"claude-sonnet-4.6"`.
+- **Detection method**: Added temporary `getErrorMessage` to `toDataStreamResponse()`, then directly curled `/api/chat` to read the raw stream — revealed the Anthropic error text.
+
+---
+
+### Issue: Anthropic account credit balance too low — chat blocked
+- **Severity**: blocker (environment issue, not code)
+- **Description**: After fixing the model name, the API now correctly reaches Anthropic but returns: `"Your credit balance is too low to access the Anthropic API."` All chat interactions fail. This is an account/billing issue — the code is correct.
+- **Fix applied**: No — requires topping up credits at https://console.anthropic.com/settings/billing.
+- **Consequence for QA**: Full agent loop (create page, link pages, knowledge cards) cannot be verified until credits are added.
+
+---
+
+### Scroll Health (session 3)
+- `html.canScroll = false` — correct (app shell)
+- `body.overflow = hidden` — correct
+- Chat panel `DIV.flex-1`: scrollH 962 / clientH 831 — ✅ scrollable
+- Right panel `DIV.flex`: scrollH 2030 / clientH 921 — ✅ scrollable
+- No scroll traps detected

@@ -112,7 +112,7 @@ export async function POST(request: Request): Promise<Response> {
   }
 
   const result = streamText({
-    model: anthropic("claude-sonnet-4-6"),
+    model: anthropic("claude-sonnet-4.6"),
     system: buildSystemPrompt(pageContext),
     messages,
     maxSteps: 5,
