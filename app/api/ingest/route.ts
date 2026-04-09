@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import type { Database } from "@/types/database";
 import { createClient as createAdminClient } from "@supabase/supabase-js";
 
 export const maxDuration = 30;
@@ -9,17 +10,33 @@ const ALLOWED_TYPES = ["application/pdf", "text/plain", "text/markdown"];
 // QA test user — matches an existing row in auth.users
 const QA_USER_ID = "5ae62cd7-24b7-474b-88c8-c90d83df0cc2";
 
+function createQaAdminClient(url: string, serviceRoleKey: string) {
+  return createAdminClient<Database>(url, serviceRoleKey);
+}
+
+type AppSupabaseClient = ReturnType<typeof createQaAdminClient>;
+
+function getQaSupabaseConfig() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+  if (!url || !serviceRoleKey) {
+    throw new Error(
+      "QA_BYPASS requires NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY.",
+    );
+  }
+
+  return { url, serviceRoleKey };
+}
+
 export async function POST(request: Request): Promise<Response> {
   let userId: string;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let supabase: ReturnType<typeof createAdminClient>;
+  let supabase: AppSupabaseClient;
 
   if (process.env.QA_BYPASS === "1") {
+    const { url, serviceRoleKey } = getQaSupabaseConfig();
     userId = QA_USER_ID;
-    supabase = createAdminClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    );
+    supabase = createQaAdminClient(url, serviceRoleKey);
   } else {
     const sessionClient = await createClient();
     const {
@@ -27,7 +44,7 @@ export async function POST(request: Request): Promise<Response> {
     } = await sessionClient.auth.getUser();
     if (!user) return Response.json({ error: "Unauthorized" }, { status: 401 });
     userId = user.id;
-    supabase = sessionClient as unknown as ReturnType<typeof createAdminClient>;
+    supabase = sessionClient as unknown as AppSupabaseClient;
   }
 
   const formData = await request.formData();
@@ -79,6 +96,7 @@ export async function POST(request: Request): Promise<Response> {
   try {
     await supabase.from("sources").insert({
       user_id: userId,
+      page_id: null,
       source_type: file.type,
       source_name: file.name,
       excerpt: text.slice(0, 500),

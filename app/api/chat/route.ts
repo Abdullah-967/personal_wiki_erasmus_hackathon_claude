@@ -1,8 +1,13 @@
 import { buildSystemPrompt } from "@/lib/claude/system-prompt";
 import { createClient } from "@/lib/supabase/server";
-import type { PageLink, RelationshipType, WikiPage } from "@/types/database";
+import type {
+  Database,
+  PageLink,
+  RelationshipType,
+  WikiPage,
+} from "@/types/database";
 import { anthropic } from "@ai-sdk/anthropic";
-import { createClient as createAdminClient, type SupabaseClient } from "@supabase/supabase-js";
+import { createClient as createAdminClient } from "@supabase/supabase-js";
 import { streamText, tool } from "ai";
 import { z } from "zod";
 
@@ -10,6 +15,23 @@ import { z } from "zod";
 const QA_USER_ID = "5ae62cd7-24b7-474b-88c8-c90d83df0cc2";
 
 export const maxDuration = 60;
+
+function createQaAdminClient(url: string, serviceRoleKey: string) {
+  return createAdminClient<Database>(url, serviceRoleKey);
+}
+
+function getQaSupabaseConfig() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+  if (!url || !serviceRoleKey) {
+    throw new Error(
+      "QA_BYPASS requires NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY.",
+    );
+  }
+
+  return { url, serviceRoleKey };
+}
 
 const relationshipTypeEnum = z.enum([
   "related_to",
@@ -33,20 +55,19 @@ type ToolResult =
   | { status: "empty" }
   | { status: "error"; message: string };
 
+type AppSupabaseClient = ReturnType<typeof createQaAdminClient>;
+
 export async function POST(request: Request): Promise<Response> {
   // QA_BYPASS: use admin client (service role) to bypass RLS — revert before shipping
   let userId: string;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let supabase: SupabaseClient<any>;
+  let supabase: AppSupabaseClient;
 
   if (process.env.QA_BYPASS === "1") {
+    const { url, serviceRoleKey } = getQaSupabaseConfig();
     userId = QA_USER_ID;
-    supabase = createAdminClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    );
+    supabase = createQaAdminClient(url, serviceRoleKey);
   } else {
-    supabase = await createClient();
+    supabase = (await createClient()) as unknown as AppSupabaseClient;
     const {
       data: { user },
     } = await supabase.auth.getUser();
@@ -139,7 +160,6 @@ export async function POST(request: Request): Promise<Response> {
           key_points,
           examples,
           aliases,
-          relationship_types,
         }): Promise<ToolResult> => {
           // F20 deduplication — run update logic if a page already exists
           const existing = findPage(title);

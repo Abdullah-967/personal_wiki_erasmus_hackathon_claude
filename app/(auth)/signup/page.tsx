@@ -1,19 +1,9 @@
 "use client";
 
+import GoogleIcon from "@/components/auth/GoogleIcon";
 import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
 import { useState } from "react";
-
-function GoogleIcon() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true">
-      <path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844a4.14 4.14 0 0 1-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.875 2.684-6.615Z"/>
-      <path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.184l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18Z"/>
-      <path fill="#FBBC05" d="M3.964 10.706A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.706V4.962H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.038l3.007-2.332Z"/>
-      <path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.962L3.964 7.294C4.672 5.163 6.656 3.58 9 3.58Z"/>
-    </svg>
-  );
-}
 
 export default function SignupPage() {
   const [email, setEmail] = useState("");
@@ -67,45 +57,72 @@ export default function SignupPage() {
 
   if (done) {
     return (
-      <div className="bg-gray-900 border border-gray-800 p-8 rounded-xl text-center">
-        <h1 className="text-2xl font-semibold text-gray-100 mb-2">
+      <section className="overflow-hidden rounded-[32px] border border-white/12 bg-slate-950/78 p-8 text-center text-slate-100 shadow-[0_30px_80px_rgba(2,6,23,0.45)] backdrop-blur-xl">
+        <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-full border border-cyan-300/20 bg-cyan-300/10 text-cyan-100">
+          <svg
+            width="22"
+            height="22"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.8"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+          >
+            <path d="m5 12 5 5L20 7" />
+          </svg>
+        </div>
+        <h1 className="mb-2 text-2xl font-semibold text-white">
           Check your email
         </h1>
-        <p className="text-sm text-gray-400">
+        <p className="text-sm leading-6 text-slate-300">
           We sent a confirmation link to{" "}
-          <span className="font-medium text-gray-200">{email}</span>.
+          <span className="font-medium text-white">{email}</span>. Open it to
+          activate your workspace.
         </p>
-      </div>
+      </section>
     );
   }
 
   return (
-    <div className="bg-gray-900 border border-gray-800 p-8 rounded-xl">
-      <h1 className="text-2xl font-semibold text-gray-100 mb-6">
-        Create account
-      </h1>
+    <section className="overflow-hidden rounded-[32px] border border-white/12 bg-slate-950/78 p-7 text-slate-100 shadow-[0_30px_80px_rgba(2,6,23,0.45)] backdrop-blur-xl sm:p-8">
+      <div className="mb-8 space-y-4">
+        <div className="inline-flex items-center rounded-full border border-cyan-300/20 bg-cyan-300/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-cyan-100">
+          Start onboarding
+        </div>
+        <div className="space-y-2">
+          <h1 className="text-3xl font-semibold text-white">Create account</h1>
+          <p className="text-sm leading-6 text-slate-300">
+            Set up your workspace and start turning conversations, notes, and
+            uploads into linked knowledge.
+          </p>
+        </div>
+      </div>
 
       <button
         type="button"
         onClick={handleGoogleSignIn}
         disabled={googleLoading || loading}
-        className="w-full flex items-center justify-center gap-3 py-2 px-4 bg-gray-800 hover:bg-gray-700 border border-gray-700 text-gray-100 rounded-lg text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+        className="flex w-full items-center justify-center gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-medium text-slate-100 transition hover:border-cyan-200/35 hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-50"
       >
         <GoogleIcon />
-        {googleLoading ? "Redirecting…" : "Continue with Google"}
+        {googleLoading ? "Redirecting..." : "Continue with Google"}
       </button>
 
-      <div className="flex items-center gap-3 my-2">
-        <div className="flex-1 h-px bg-gray-700" />
-        <span className="text-xs text-gray-500">or</span>
-        <div className="flex-1 h-px bg-gray-700" />
+      <div className="my-5 flex items-center gap-3">
+        <div className="h-px flex-1 bg-white/10" />
+        <span className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">
+          or use email
+        </span>
+        <div className="h-px flex-1 bg-white/10" />
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-4">
-        <div>
+        <div className="space-y-2">
           <label
             htmlFor="email"
-            className="block text-sm font-medium text-gray-300 mb-1"
+            className="block text-sm font-medium text-slate-200"
           >
             Email
           </label>
@@ -117,14 +134,14 @@ export default function SignupPage() {
             onChange={(e) => setEmail(e.target.value)}
             autoComplete="email"
             placeholder="you@example.com"
-            className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className="w-full rounded-2xl border border-white/10 bg-slate-900/80 px-4 py-3 text-sm text-white placeholder:text-slate-500 focus:border-cyan-300/60 focus:outline-none focus:ring-2 focus:ring-cyan-300/20"
           />
         </div>
 
-        <div>
+        <div className="space-y-2">
           <label
             htmlFor="password"
-            className="block text-sm font-medium text-gray-300 mb-1"
+            className="block text-sm font-medium text-slate-200"
           >
             Password
           </label>
@@ -137,30 +154,34 @@ export default function SignupPage() {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             placeholder="••••••••"
-            className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className="w-full rounded-2xl border border-white/10 bg-slate-900/80 px-4 py-3 text-sm text-white placeholder:text-slate-500 focus:border-cyan-300/60 focus:outline-none focus:ring-2 focus:ring-cyan-300/20"
           />
         </div>
 
-        {error && <p className="text-sm text-red-400">{error}</p>}
+        {error ? (
+          <p className="rounded-2xl border border-red-400/20 bg-red-500/10 px-4 py-3 text-sm text-red-200">
+            {error}
+          </p>
+        ) : null}
 
         <button
           type="submit"
           disabled={loading}
-          className="w-full py-2 px-4 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          className="w-full rounded-2xl bg-cyan-300 px-4 py-3 text-sm font-semibold text-slate-950 transition hover:bg-cyan-200 disabled:cursor-not-allowed disabled:opacity-50"
         >
-          {loading ? "Creating account…" : "Create account"}
+          {loading ? "Creating account..." : "Create account"}
         </button>
       </form>
 
-      <p className="mt-4 text-sm text-gray-400 text-center">
+      <p className="mt-6 text-center text-sm text-slate-400">
         Already have an account?{" "}
         <Link
           href="/login"
-          className="text-blue-400 hover:text-blue-300 hover:underline"
+          className="font-medium text-cyan-200 transition hover:text-cyan-100"
         >
           Sign in
         </Link>
       </p>
-    </div>
+    </section>
   );
 }
