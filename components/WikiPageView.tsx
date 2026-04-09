@@ -5,6 +5,7 @@ import type { RelationshipType, Source, WikiPage } from "@/types/database";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 type SectionKey = "title" | "summary" | "body" | "key_points";
 
@@ -430,8 +431,9 @@ export default function WikiPageView({
                   <div className="h-4 bg-gray-800 rounded w-3/4" />
                 </div>
               ) : page.body ? (
-                <div className="text-gray-300 leading-relaxed [&_h1]:text-gray-100 [&_h2]:text-gray-100 [&_h3]:text-gray-100 [&_h4]:text-gray-100 [&_a]:text-blue-400 [&_a:hover]:text-blue-300 [&_code]:bg-gray-800 [&_code]:px-1 [&_code]:rounded [&_pre]:bg-gray-800 [&_pre]:p-3 [&_pre]:rounded [&_blockquote]:border-l-2 [&_blockquote]:border-gray-600 [&_blockquote]:pl-4 [&_blockquote]:text-gray-400">
+                <div className="text-gray-300 leading-relaxed [&_h1]:text-gray-100 [&_h2]:text-gray-100 [&_h3]:text-gray-100 [&_h4]:text-gray-100 [&_a]:text-blue-400 [&_a:hover]:text-blue-300 [&_code]:bg-gray-800 [&_code]:px-1 [&_code]:rounded [&_pre]:bg-gray-800 [&_pre]:p-3 [&_pre]:rounded [&_blockquote]:border-l-2 [&_blockquote]:border-gray-600 [&_blockquote]:pl-4 [&_blockquote]:text-gray-400 [&_table]:w-full [&_table]:border-collapse [&_table]:my-3 [&_th]:border [&_th]:border-gray-700 [&_th]:bg-gray-800 [&_th]:px-3 [&_th]:py-2 [&_th]:text-left [&_th]:text-gray-200 [&_td]:border [&_td]:border-gray-700 [&_td]:px-3 [&_td]:py-2">
                   <ReactMarkdown
+                    remarkPlugins={[remarkGfm]}
                     urlTransform={(url) => url}
                     components={mdComponents}
                   >

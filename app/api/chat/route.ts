@@ -8,7 +8,7 @@ import type {
 } from "@/types/database";
 import { anthropic } from "@ai-sdk/anthropic";
 import { createClient as createAdminClient } from "@supabase/supabase-js";
-import { streamText, tool } from "ai";
+import { streamText, tool } from "ai"
 import { z } from "zod";
 
 // QA test user — matches an existing row in auth.users
@@ -133,7 +133,7 @@ export async function POST(request: Request): Promise<Response> {
   }
 
   const result = streamText({
-    model: anthropic("claude-sonnet-4.6"),
+    model: anthropic("claude-haiku-4.6"),
     system: buildSystemPrompt(pageContext),
     messages,
     maxSteps: 5,
