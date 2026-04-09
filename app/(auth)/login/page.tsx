@@ -57,7 +57,6 @@ export default function LoginPage() {
       }
 
       router.push("/");
-      router.refresh();
     } catch {
       setError("Unable to connect. Check your configuration.");
     } finally {

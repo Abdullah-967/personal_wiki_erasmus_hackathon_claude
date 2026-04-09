@@ -267,7 +267,31 @@ export default function WikiPageView({
                   </div>
                 ) : page.body ? (
                   <div className="text-gray-300 prose-headings:text-gray-100 leading-relaxed [&_h1]:text-gray-100 [&_h2]:text-gray-100 [&_h3]:text-gray-100 [&_h4]:text-gray-100 [&_a]:text-blue-400 [&_a:hover]:text-blue-300 [&_code]:bg-gray-800 [&_code]:px-1 [&_code]:rounded [&_pre]:bg-gray-800 [&_pre]:p-3 [&_pre]:rounded [&_blockquote]:border-l-2 [&_blockquote]:border-gray-600 [&_blockquote]:pl-4 [&_blockquote]:text-gray-400">
-                    <ReactMarkdown>{page.body}</ReactMarkdown>
+                    <ReactMarkdown
+                      components={{
+                        a: ({ href, children }) => {
+                          if (href?.startsWith("wiki:")) {
+                            const title = href.slice(5);
+                            return (
+                              <button
+                                type="button"
+                                onClick={() => onNavigate(title)}
+                                className="text-blue-400 hover:text-blue-300 underline cursor-pointer"
+                              >
+                                {children}
+                              </button>
+                            );
+                          }
+                          return (
+                            <a href={href} target="_blank" rel="noopener noreferrer">
+                              {children}
+                            </a>
+                          );
+                        },
+                      }}
+                    >
+                      {page.body}
+                    </ReactMarkdown>
                   </div>
                 ) : null}
               </div>
