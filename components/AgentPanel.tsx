@@ -13,6 +13,7 @@ interface Props {
     mode: "related" | "referenced",
     pages: WikiPage[],
   ) => void;
+  onReferencedPageTitles: (titles: string[]) => void;
 }
 
 // Shape returned by our tool handlers
@@ -114,9 +115,11 @@ function KnowledgeCards({
 export default function AgentPanel({
   onNavigateToTitle,
   onRightPanelChange: _onRightPanelChange,
+  onReferencedPageTitles,
 }: Props) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const processedQueryResults = useRef<Set<string>>(new Set());
   const [fileStatus, setFileStatus] = useState<string | null>(null);
   const [fileError, setFileError] = useState<string | null>(null);
   const [chatError, setChatError] = useState<string | null>(null);
@@ -150,6 +153,29 @@ export default function AgentPanel({
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
   }, [messages]);
+
+  // Detect completed query_personal_wiki results and surface referenced pages
+  useEffect(() => {
+    for (const msg of messages) {
+      if (msg.role !== "assistant" || !msg.toolInvocations) continue;
+      for (const t of msg.toolInvocations) {
+        if (
+          t.toolName !== "query_personal_wiki" ||
+          t.state !== "result" ||
+          processedQueryResults.current.has(t.toolCallId)
+        )
+          continue;
+        processedQueryResults.current.add(t.toolCallId);
+        const result = t.result as ToolResultData;
+        if (result.status === "ok" && result.data.pages) {
+          const titles = (result.data.pages as { title: string }[]).map(
+            (p) => p.title,
+          );
+          if (titles.length > 0) onReferencedPageTitles(titles);
+        }
+      }
+    }
+  }, [messages, onReferencedPageTitles]);
 
   const activeToolLabel = isLoading ? resolveActiveLabel(messages) : null;
 

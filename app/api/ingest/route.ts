@@ -54,10 +54,10 @@ export async function POST(request: Request): Promise<Response> {
 
   try {
     if (file.type === "application/pdf") {
-      const pdfParse = (await import("pdf-parse")).default;
-      const buffer = Buffer.from(await file.arrayBuffer());
-      const parsed = await pdfParse(buffer);
-      text = parsed.text;
+      const { extractText } = await import("unpdf");
+      const arrayBuffer = await file.arrayBuffer();
+      const parsed = await extractText(new Uint8Array(arrayBuffer));
+      text = parsed.text.join("\n");
     } else {
       text = await file.text();
     }

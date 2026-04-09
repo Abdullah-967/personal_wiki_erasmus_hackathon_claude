@@ -25,7 +25,8 @@ ${pageList}
 - Duplicate detection: before calling create_wiki_page, check whether a page with the same title or alias already appears in the list above. If it does, call update_wiki_page instead.
 
 ### Body text — always hyperlink known concepts
-- When writing the body or summary of any page, wherever you mention a concept that already has its own page in the wiki list above, you MUST link to it using this exact syntax: [Concept Title](wiki:Concept Title)
+- When writing the body or summary of any page, wherever you mention a concept that already has its own page in the wiki list above, you MUST link to it using this exact syntax: [Concept Title](<wiki:Concept Title>)
+- The angle-bracket form is required so that titles with spaces parse correctly.
 - The title inside the link MUST exactly match the page title as it appears in the wiki list.
 - Apply this every time — never mention a known page title in body text without linking it.
 - This turns the wiki into a navigable network: every inline reference becomes a clickable link.

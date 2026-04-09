@@ -18,6 +18,7 @@ export default function AppShell() {
   const [referencedPages, setReferencedPages] = useState<WikiPage[]>([]);
   const [allPages, setAllPages] = useState<WikiPage[]>([]);
   const [userId, setUserId] = useState<string | null>(null);
+  const [navHistory, setNavHistory] = useState<WikiPage[]>([]);
 
   // F18: streaming UX state
   const [isSkeletonMode, setIsSkeletonMode] = useState(false);
@@ -191,7 +192,10 @@ export default function AppShell() {
               .select("*")
               .in("id", targetIds);
 
-            if (pages) setRelatedPages(pages);
+            if (pages) {
+              setRelatedPages(pages);
+              setRightPanelMode("related");
+            }
           },
         )
         .subscribe();
@@ -208,6 +212,16 @@ export default function AppShell() {
     };
   }, [userId]);
 
+  function handleReferencedPageTitles(titles: string[]) {
+    const referenced = allPages.filter((p) =>
+      titles.some((t) => t.toLowerCase() === p.title.toLowerCase()),
+    );
+    if (referenced.length > 0) {
+      setReferencedPages(referenced);
+      setRightPanelMode("referenced");
+    }
+  }
+
   function handleRightPanel(mode: "related" | "referenced", pages: WikiPage[]) {
     if (mode === "related") {
       setRelatedPages(pages);
@@ -219,14 +233,47 @@ export default function AppShell() {
   }
 
   async function handleNavigate(title: string) {
-    const page = allPages.find(
+    const cached = allPages.find(
       (p) =>
         p.title.toLowerCase() === title.toLowerCase() ||
         p.aliases.some((a) => a.toLowerCase() === title.toLowerCase()),
     );
-    if (page) {
-      setActivePage(page);
+
+    let target: WikiPage | null = cached ?? null;
+
+    if (!target) {
+      // Page not in local cache (e.g. created after initial load, Realtime delay)
+      const { data } = await supabase
+        .from("wiki_pages")
+        .select("*")
+        .ilike("title", title)
+        .maybeSingle();
+
+      if (data) {
+        const fetched = data as WikiPage;
+        setAllPages((prev) =>
+          prev.some((p) => p.id === fetched.id) ? prev : [fetched, ...prev],
+        );
+        target = fetched;
+      }
     }
+
+    if (!target || target.id === activePageRef.current?.id) return;
+
+    // Push current page onto the back stack before navigating
+    if (activePageRef.current) {
+      setNavHistory((prev) => [...prev.slice(-19), activePageRef.current!]);
+    }
+    setActivePage(target);
+  }
+
+  function handleNavigateBack() {
+    setNavHistory((prev) => {
+      if (!prev.length) return prev;
+      const last = prev[prev.length - 1];
+      setActivePage(last);
+      return prev.slice(0, -1);
+    });
   }
 
   const rightPages =
@@ -241,10 +288,14 @@ export default function AppShell() {
       <AgentPanel
         onNavigateToTitle={handleNavigate}
         onRightPanelChange={handleRightPanel}
+        onReferencedPageTitles={handleReferencedPageTitles}
       />
       <WikiPageView
         page={activePage}
+        allPages={allPages}
         onNavigate={handleNavigate}
+        canGoBack={navHistory.length > 0}
+        onNavigateBack={handleNavigateBack}
         isSkeletonMode={isSkeletonMode}
         revealedSections={revealedSections}
         changedSections={changedSections}
