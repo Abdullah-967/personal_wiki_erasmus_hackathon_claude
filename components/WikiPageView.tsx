@@ -56,7 +56,7 @@ function WikiLink({ title, allPages, onNavigate, children }: WikiLinkProps) {
   // Case-insensitive title/alias match for the hover preview
   const preview = useMemo(
     () =>
-      allPages.find(
+      allPages?.find(
         (p) =>
           p.title.toLowerCase() === title.toLowerCase() ||
           p.aliases.some((a) => a.toLowerCase() === title.toLowerCase()),
